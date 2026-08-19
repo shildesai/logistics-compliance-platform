@@ -5,7 +5,7 @@ import { expect, test } from "@playwright/test";
 
 test.beforeEach(async ({ page }) => {
   await page.goto("/controls");
-  await page.getByRole("button", { name: /CTL-FAT-001/ }).click();
+  await page.getByRole("button", { name: /SMP-CTL-FAT/ }).click();
   await expect(page.getByText("Why this control exists")).toBeVisible();
 });
 
@@ -32,7 +32,7 @@ test("renders the full chain from regulation down to the control", async ({ page
   await expect(chain.getByText("Heavy Vehicle National Law").first()).toBeVisible();
   await expect(chain.getByText("Manage heavy vehicle driver fatigue")).toBeVisible();
   await expect(chain.getByText("Driver operates beyond work/rest limits")).toBeVisible();
-  await expect(chain.getByText("CTL-FAT-001").first()).toBeVisible();
+  await expect(chain.getByText("SMP-CTL-FAT").first()).toBeVisible();
 });
 
 test("a shared control shows every obligation it satisfies", async ({ page }) => {

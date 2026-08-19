@@ -9,10 +9,10 @@ What the sample demonstrates:
 
   * a full Regulation → Obligation → Risk → Control → ControlTest →
     EvidenceRequirement chain, twice;
-  * **a superseded version** — CTL-FAT-001 is at version 2 after a 2026
+  * **a superseded version** — SMP-CTL-FAT is at version 2 after a 2026
     fatigue-threshold change, with version 1 retained and closed, so lineage
     and as-at queries have real history to resolve against;
-  * **a shared control** — CTL-FAT-001 mitigates risks arising from two
+  * **a shared control** — SMP-CTL-FAT mitigates risks arising from two
     different obligations, which is the shared-control architecture the
     product depends on;
   * all four test types, including a MANUAL test with no automated rule and an
@@ -86,7 +86,12 @@ def _governance(db: Session) -> tuple[uuid.UUID | None, uuid.UUID | None]:
 
 
 def seed(db: Session) -> dict[str, int]:
-    if db.execute(select(Regulation.id)).scalars().first() is not None:
+    # Keyed on this sample's own data, not on "any regulation exists": the
+    # imported catalogue also creates the HVNL regulation, and the two are
+    # designed to coexist (the sample is namespaced SMP-*).
+    if db.execute(
+        select(Control.id).where(Control.control_code == "SMP-CTL-FAT")
+    ).scalars().first() is not None:
         return {"skipped": 1}
 
     reviewed_by, approved_by = _governance(db)
@@ -124,36 +129,44 @@ def seed(db: Session) -> dict[str, int]:
     db.flush()
 
     # --- Regulation ------------------------------------------------------
-    hvnl = Regulation(
-        regulation_code="HVNL",
-        name="Heavy Vehicle National Law",
-        short_name="HVNL",
-        regulator="National Heavy Vehicle Regulator",
-    )
-    db.add(hvnl)
-    db.flush()
-
-    db.add(
-        RegulationVersion(
-            regulation_id=hvnl.id,
-            regulatory_source_id=hvnl_source.id,
-            version=1,
-            effective_from=GRAPH_START,
-            effective_to=None,
-            source_reference="Heavy Vehicle National Law (consolidated)",
-            title="Heavy Vehicle National Law",
-            summary=(
-                "National law governing heavy vehicle operations, including primary "
-                "duty and Chain of Responsibility obligations."
-            ),
-            jurisdiction_codes=HVNL_STATES,
-            **gov,
+    # Reused if the catalogue import already created it — both describe the
+    # same law, and a second HVNL row would be a duplicate.
+    hvnl = db.execute(
+        select(Regulation).where(Regulation.regulation_code == "HVNL")
+    ).scalar_one_or_none()
+    already_had_regulation = hvnl is not None
+    if hvnl is None:
+        hvnl = Regulation(
+            regulation_code="HVNL",
+            name="Heavy Vehicle National Law",
+            short_name="HVNL",
+            regulator="National Heavy Vehicle Regulator",
         )
-    )
+        db.add(hvnl)
+        db.flush()
+
+    if not already_had_regulation:
+        db.add(
+            RegulationVersion(
+                regulation_id=hvnl.id,
+                regulatory_source_id=hvnl_source.id,
+                version=1,
+                effective_from=GRAPH_START,
+                effective_to=None,
+                source_reference="Heavy Vehicle National Law (consolidated)",
+                title="Heavy Vehicle National Law",
+                summary=(
+                    "National law governing heavy vehicle operations, including primary "
+                    "duty and Chain of Responsibility obligations."
+                ),
+                jurisdiction_codes=HVNL_STATES,
+                **gov,
+            )
+        )
 
     # --- Obligations -----------------------------------------------------
     fatigue_obligation = Obligation(
-        obligation_code="OBL-FATIGUE",
+        obligation_code="SMP-OBL-FATIGUE",
         regulation_id=hvnl.id,
         version=1,
         effective_from=GRAPH_START,
@@ -168,7 +181,7 @@ def seed(db: Session) -> dict[str, int]:
         **gov,
     )
     scheduling_obligation = Obligation(
-        obligation_code="OBL-SAFE-SCHEDULING",
+        obligation_code="SMP-OBL-SCHEDULING",
         regulation_id=hvnl.id,
         version=1,
         effective_from=GRAPH_START,
@@ -182,7 +195,7 @@ def seed(db: Session) -> dict[str, int]:
         **gov,
     )
     roadworthiness_obligation = Obligation(
-        obligation_code="OBL-ROADWORTHY",
+        obligation_code="SMP-OBL-ROADWORTHY",
         regulation_id=hvnl.id,
         version=1,
         effective_from=GRAPH_START,
@@ -202,7 +215,7 @@ def seed(db: Session) -> dict[str, int]:
     db.add_all(
         [
             ApplicabilityRule(
-                rule_code="APP-FATIGUE-HVNL",
+                rule_code="SMP-APP-FATIGUE",
                 obligation_id=fatigue_obligation.id,
                 version=1,
                 effective_from=GRAPH_START,
@@ -221,7 +234,7 @@ def seed(db: Session) -> dict[str, int]:
                 **gov,
             ),
             ApplicabilityRule(
-                rule_code="APP-SCHEDULING-COR",
+                rule_code="SMP-APP-SCHEDULING",
                 obligation_id=scheduling_obligation.id,
                 version=1,
                 effective_from=GRAPH_START,
@@ -238,7 +251,7 @@ def seed(db: Session) -> dict[str, int]:
                 **gov,
             ),
             ApplicabilityRule(
-                rule_code="APP-ROADWORTHY",
+                rule_code="SMP-APP-ROADWORTHY",
                 obligation_id=roadworthiness_obligation.id,
                 version=1,
                 effective_from=GRAPH_START,
@@ -255,7 +268,7 @@ def seed(db: Session) -> dict[str, int]:
 
     # --- Risks -----------------------------------------------------------
     fatigue_risk = Risk(
-        risk_code="RSK-FATIGUE-EXCEED",
+        risk_code="SMP-RSK-FATIGUE",
         obligation_id=fatigue_obligation.id,
         version=1,
         effective_from=GRAPH_START,
@@ -269,7 +282,7 @@ def seed(db: Session) -> dict[str, int]:
         **gov,
     )
     schedule_fatigue_risk = Risk(
-        risk_code="RSK-SCHEDULE-PRESSURE",
+        risk_code="SMP-RSK-SCHEDULE",
         obligation_id=scheduling_obligation.id,
         version=1,
         effective_from=GRAPH_START,
@@ -283,7 +296,7 @@ def seed(db: Session) -> dict[str, int]:
         **gov,
     )
     defect_risk = Risk(
-        risk_code="RSK-UNSAFE-VEHICLE",
+        risk_code="SMP-RSK-VEHICLE",
         obligation_id=roadworthiness_obligation.id,
         version=1,
         effective_from=GRAPH_START,
@@ -300,9 +313,9 @@ def seed(db: Session) -> dict[str, int]:
     db.flush()
 
     # --- Controls --------------------------------------------------------
-    fatigue_control = Control(control_code="CTL-FAT-001", domain="Fatigue / Work-Rest")
+    fatigue_control = Control(control_code="SMP-CTL-FAT", domain="Fatigue / Work-Rest")
     maintenance_control = Control(
-        control_code="CTL-MNT-001", domain="Vehicle Maintenance & Roadworthiness"
+        control_code="SMP-CTL-MNT", domain="Vehicle Maintenance & Roadworthiness"
     )
     db.add_all([fatigue_control, maintenance_control])
     db.flush()
@@ -433,7 +446,7 @@ def seed(db: Session) -> dict[str, int]:
 
     fat_001 = add_test(
         fatigue_control,
-        "FAT-001",
+        "SMP-FAT-001",
         name="Work-time threshold exception",
         logic=(
             "Calculate actual work time in the rolling window and compare against the "
@@ -460,7 +473,7 @@ def seed(db: Session) -> dict[str, int]:
 
     fat_005 = add_test(
         fatigue_control,
-        "FAT-005",
+        "SMP-FAT-005",
         name="Repeat fatigue exceptions",
         logic="Cluster repeated fatigue exceptions by driver, route, scheduler or customer.",
         test_type=TestType.ANALYTICAL,
@@ -478,7 +491,7 @@ def seed(db: Session) -> dict[str, int]:
 
     fat_009 = add_test(
         fatigue_control,
-        "FAT-009",
+        "SMP-FAT-009",
         name="Fatigue management policy review",
         logic=(
             "A responsible person confirms the documented fatigue policy has been "
@@ -497,7 +510,7 @@ def seed(db: Session) -> dict[str, int]:
 
     mnt_002 = add_test(
         maintenance_control,
-        "MNT-002",
+        "SMP-MNT-002",
         name="Open safety defect at dispatch",
         logic="Vehicle assigned to a trip while a critical defect remains open.",
         test_type=TestType.DETERMINISTIC,
@@ -515,7 +528,7 @@ def seed(db: Session) -> dict[str, int]:
 
     mnt_007 = add_test(
         maintenance_control,
-        "MNT-007",
+        "SMP-MNT-007",
         name="Defect photo does not evidence rectification",
         logic=(
             "Image evidence attached to a defect closure does not show the repair "
@@ -538,7 +551,7 @@ def seed(db: Session) -> dict[str, int]:
     db.add_all(
         [
             EvidenceRequirement(
-                requirement_code="EVR-FAT-001-EWD",
+                requirement_code="SMP-EVR-FAT-001-EWD",
                 control_test_version_id=fat_001.id,
                 version=1,
                 effective_from=GRAPH_START,
@@ -557,7 +570,7 @@ def seed(db: Session) -> dict[str, int]:
                 **gov,
             ),
             EvidenceRequirement(
-                requirement_code="EVR-FAT-001-TMS",
+                requirement_code="SMP-EVR-FAT-001-TMS",
                 control_test_version_id=fat_001.id,
                 version=1,
                 effective_from=GRAPH_START,
@@ -570,7 +583,7 @@ def seed(db: Session) -> dict[str, int]:
                 **gov,
             ),
             EvidenceRequirement(
-                requirement_code="EVR-FAT-005-EVENTS",
+                requirement_code="SMP-EVR-FAT-005-EVENTS",
                 control_test_version_id=fat_005.id,
                 version=1,
                 effective_from=GRAPH_START,
@@ -582,7 +595,7 @@ def seed(db: Session) -> dict[str, int]:
                 **gov,
             ),
             EvidenceRequirement(
-                requirement_code="EVR-FAT-009-POLICY",
+                requirement_code="SMP-EVR-FAT-009-POLICY",
                 control_test_version_id=fat_009.id,
                 version=1,
                 effective_from=GRAPH_START,
@@ -594,7 +607,7 @@ def seed(db: Session) -> dict[str, int]:
                 **gov,
             ),
             EvidenceRequirement(
-                requirement_code="EVR-MNT-002-DEFECT",
+                requirement_code="SMP-EVR-MNT-002-DEFECT",
                 control_test_version_id=mnt_002.id,
                 version=1,
                 effective_from=GRAPH_START,
@@ -612,7 +625,7 @@ def seed(db: Session) -> dict[str, int]:
                 **gov,
             ),
             EvidenceRequirement(
-                requirement_code="EVR-MNT-002-DISPATCH",
+                requirement_code="SMP-EVR-MNT-002-DISPATCH",
                 control_test_version_id=mnt_002.id,
                 version=1,
                 effective_from=GRAPH_START,
@@ -624,7 +637,7 @@ def seed(db: Session) -> dict[str, int]:
                 **gov,
             ),
             EvidenceRequirement(
-                requirement_code="EVR-MNT-007-PHOTO",
+                requirement_code="SMP-EVR-MNT-007-PHOTO",
                 control_test_version_id=mnt_007.id,
                 version=1,
                 effective_from=GRAPH_START,
@@ -643,7 +656,7 @@ def seed(db: Session) -> dict[str, int]:
     db.add_all(
         [
             RemediationTemplate(
-                template_code="REM-FAT-001",
+                template_code="SMP-REM-FAT",
                 control_test_version_id=fat_001.id,
                 version=1,
                 effective_from=GRAPH_START,
@@ -666,7 +679,7 @@ def seed(db: Session) -> dict[str, int]:
                 **gov,
             ),
             RemediationTemplate(
-                template_code="REM-MNT-002",
+                template_code="SMP-REM-MNT",
                 control_test_version_id=mnt_002.id,
                 version=1,
                 effective_from=GRAPH_START,

@@ -14,6 +14,7 @@ from app.models.accreditation import (
 )
 from app.models.applicability_rule import ApplicabilityRule
 from app.models.business_unit import BusinessUnit
+from app.models.catalogue_import import CatalogueImportRecord
 from app.models.control import Control, ControlRiskLink, ControlVersion
 from app.models.control_test import ControlTest, ControlTestVersion
 from app.models.cor_role import CoRRole, OrganisationCoRRole
@@ -54,6 +55,10 @@ CONTROL_GRAPH_TABLES: frozenset[str] = frozenset(
         "evidence_requirements",
         "applicability_rules",
         "remediation_templates",
+        # Provenance for content imported into the graph above. Platform-scoped
+        # for the same reason the graph is: it describes shared reference data,
+        # not any customer's records.
+        "catalogue_import_records",
     }
 )
 
@@ -83,6 +88,7 @@ __all__ = [
     "AccreditationStatus",
     "ApplicabilityRule",
     "BusinessUnit",
+    "CatalogueImportRecord",
     "CONTROL_GRAPH_TABLES",
     "Control",
     "ControlRiskLink",

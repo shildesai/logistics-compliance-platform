@@ -17,7 +17,7 @@ from dataclasses import dataclass
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, select, text
+from sqlalchemy import create_engine, delete, select, text
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
@@ -188,6 +188,41 @@ def auth(user: User, organisation: Organisation | None = None) -> dict[str, str]
     return headers
 
 
+#: Control-graph tables in FK-safe deletion order.
+_GRAPH_TABLES_IN_DELETE_ORDER = (
+    "CatalogueImportRecord",
+    "RemediationTemplate",
+    "EvidenceRequirement",
+    "ControlTestVersion",
+    "ControlTest",
+    "ControlRiskLink",
+    "ControlVersion",
+    "Control",
+    "ApplicabilityRule",
+    "Risk",
+    "Obligation",
+    "RegulationVersion",
+    "Regulation",
+    "RegulatorySource",
+)
+
+
+@pytest.fixture()
+def clean_graph(db):
+    """Empty the control graph inside this test's transaction.
+
+    The development database legitimately holds an imported catalogue, so a
+    test that asserts on global counts would otherwise depend on ambient
+    state. Deleting here gives a deterministic baseline and is rolled back
+    with the rest of the transaction, leaving the dev data intact.
+    """
+    import app.models as models
+
+    for name in _GRAPH_TABLES_IN_DELETE_ORDER:
+        db.execute(delete(getattr(models, name)))
+    db.flush()
+
+
 @dataclass
 class ControlGraphFixture:
     regulation: object
@@ -196,7 +231,7 @@ class ControlGraphFixture:
 
 
 @pytest.fixture()
-def control_graph(db) -> ControlGraphFixture:
+def control_graph(db, clean_graph) -> ControlGraphFixture:
     """The sample Compliance Control Graph, seeded inside the test transaction.
 
     Reuses scripts/seed_control_graph.py rather than duplicating fixtures, so
@@ -234,8 +269,8 @@ def control_graph(db) -> ControlGraphFixture:
     }
     return ControlGraphFixture(
         regulation=regulation,
-        fatigue_control=controls["CTL-FAT-001"],
-        maintenance_control=controls["CTL-MNT-001"],
+        fatigue_control=controls["SMP-CTL-FAT"],
+        maintenance_control=controls["SMP-CTL-MNT"],
     )
 
 

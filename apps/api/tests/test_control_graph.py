@@ -133,12 +133,12 @@ def test_control_detail_includes_risks_and_tests(db, control_graph):
     assert len(detail.tests) == 3
 
     codes = {t.control_test.test_code for t in detail.tests}
-    assert codes == {"FAT-001", "FAT-005", "FAT-009"}
+    assert codes == {"SMP-FAT-001", "SMP-FAT-005", "SMP-FAT-009"}
 
 
 def test_control_tests_carry_evidence_requirements(db, control_graph):
     detail = graph.get_control_detail(db, control_graph.fatigue_control.id)
-    fat_001 = next(t for t in detail.tests if t.control_test.test_code == "FAT-001")
+    fat_001 = next(t for t in detail.tests if t.control_test.test_code == "SMP-FAT-001")
 
     assert len(fat_001.evidence_requirements) == 2
     sources = {e.source_type.value for e in fat_001.evidence_requirements}
@@ -147,7 +147,7 @@ def test_control_tests_carry_evidence_requirements(db, control_graph):
 
 def test_control_tests_carry_remediation_templates(db, control_graph):
     detail = graph.get_control_detail(db, control_graph.fatigue_control.id)
-    fat_001 = next(t for t in detail.tests if t.control_test.test_code == "FAT-001")
+    fat_001 = next(t for t in detail.tests if t.control_test.test_code == "SMP-FAT-001")
 
     assert len(fat_001.remediation_templates) == 1
     template = fat_001.remediation_templates[0]
@@ -171,8 +171,8 @@ def test_lineage_traces_the_full_chain_to_the_regulation(db, control_graph):
     assert len(lineage.paths) == 1
     path = lineage.paths[0]
     assert path.regulation.regulation_code == "HVNL"
-    assert path.obligation.obligation_code == "OBL-ROADWORTHY"
-    assert path.risk.risk_code == "RSK-UNSAFE-VEHICLE"
+    assert path.obligation.obligation_code == "SMP-OBL-ROADWORTHY"
+    assert path.risk.risk_code == "SMP-RSK-VEHICLE"
     assert path.is_primary_control is True
 
 
@@ -183,7 +183,7 @@ def test_a_shared_control_has_multiple_lineage_paths(db, control_graph):
 
     assert len(lineage.paths) == 2
     obligations = {p.obligation.obligation_code for p in lineage.paths}
-    assert obligations == {"OBL-FATIGUE", "OBL-SAFE-SCHEDULING"}
+    assert obligations == {"SMP-OBL-FATIGUE", "SMP-OBL-SCHEDULING"}
 
 
 def test_lineage_marks_which_path_is_the_primary_mitigation(db, control_graph):
@@ -191,13 +191,13 @@ def test_lineage_marks_which_path_is_the_primary_mitigation(db, control_graph):
     primary = [p for p in lineage.paths if p.is_primary_control]
 
     assert len(primary) == 1
-    assert primary[0].obligation.obligation_code == "OBL-FATIGUE"
+    assert primary[0].obligation.obligation_code == "SMP-OBL-FATIGUE"
 
 
 def test_lineage_includes_applicability_rules(db, control_graph):
     lineage = graph.get_control_lineage(db, control_graph.fatigue_control.id)
     fatigue_path = next(
-        p for p in lineage.paths if p.obligation.obligation_code == "OBL-FATIGUE"
+        p for p in lineage.paths if p.obligation.obligation_code == "SMP-OBL-FATIGUE"
     )
 
     assert len(fatigue_path.applicability_rules) == 1
@@ -222,7 +222,7 @@ def test_lineage_exposes_the_full_version_history(db, control_graph):
 def test_lineage_includes_test_version_history(db, control_graph):
     lineage = graph.get_control_lineage(db, control_graph.fatigue_control.id)
 
-    assert set(lineage.test_version_history) == {"FAT-001", "FAT-005", "FAT-009"}
+    assert set(lineage.test_version_history) == {"SMP-FAT-001", "SMP-FAT-005", "SMP-FAT-009"}
     assert all(versions for versions in lineage.test_version_history.values())
 
 
@@ -233,9 +233,9 @@ def test_obligations_can_be_filtered_by_cor_role(db, control_graph):
     scheduler_duties = graph.list_obligations(db, cor_role_code="SCHEDULER")
     codes = {o.obligation_code for o in scheduler_duties}
 
-    assert "OBL-SAFE-SCHEDULING" in codes
+    assert "SMP-OBL-SCHEDULING" in codes
     # Roadworthiness attaches to operators/employers, not schedulers.
-    assert "OBL-ROADWORTHY" not in codes
+    assert "SMP-OBL-ROADWORTHY" not in codes
 
 
 def test_obligations_can_be_filtered_by_regulation(db, control_graph):
@@ -246,7 +246,7 @@ def test_obligations_can_be_filtered_by_regulation(db, control_graph):
 def test_controls_can_be_filtered_by_domain(db, control_graph):
     controls = graph.list_controls(db, domain="Fatigue / Work-Rest")
     assert len(controls) == 1
-    assert controls[0][0].control_code == "CTL-FAT-001"
+    assert controls[0][0].control_code == "SMP-CTL-FAT"
 
 
 def test_regulation_with_no_version_in_force_is_still_listed(db, control_graph):

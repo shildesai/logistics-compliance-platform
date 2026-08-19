@@ -30,6 +30,7 @@ logistics-compliance-platform/
 │   ├── DATA_MODEL.md          # Data model reference
 │   ├── SECURITY.md            # Security considerations
 │   ├── TENANCY.md             # Multi-tenant isolation model, roles, threat notes
+│   ├── CONTROL_IMPORT_MAPPING.md  # Catalogue → control graph field mapping
 │   └── reference/              # Reference documentation (API, schemas, etc.)
 │
 ├── tests/                     # Cross-cutting/integration tests
@@ -77,7 +78,10 @@ cp .env.example .env            # adjust DATABASE_URL if needed
 uv venv .venv && source .venv/bin/activate
 uv pip install -e ".[dev]"
 alembic upgrade head
-python scripts/seed_dev_data.py   # two demo organisations + users
+python scripts/seed_dev_data.py      # two demo organisations + users
+python scripts/seed_control_graph.py # small illustrative graph (SMP-* codes)
+python scripts/import_control_catalogue.py \
+    ../../docs/reference/Logistics_Compliance_Control_Test_Catalogue_v2.json --activate
 uvicorn app.main:app --reload --port 8000
 
 # 3. Web (in a second terminal)
