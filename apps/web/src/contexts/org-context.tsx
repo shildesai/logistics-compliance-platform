@@ -2,6 +2,7 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -10,42 +11,51 @@ import {
 } from "react";
 
 import { api } from "@/lib/api";
-import type { Organization } from "@/lib/types";
+import type { Membership, Organisation, Permission } from "@/lib/types";
 
-const STORAGE_KEY = "logistics-compliance:selected-org";
+const STORAGE_KEY = "logistics-compliance:selected-organisation";
 
 interface OrgContextValue {
-  organizations: Organization[];
-  selectedOrg: Organization | null;
-  setSelectedOrgSlug: (slug: string) => void;
+  memberships: Membership[];
+  selectedMembership: Membership | null;
+  selectedOrg: Organisation | null;
+  setSelectedOrgId: (id: string) => void;
+  /** Permission check for the *current* organisation. The server enforces
+   * this independently; this only decides what the UI offers. */
+  can: (permission: Permission) => boolean;
   loading: boolean;
   error: string | null;
+  reload: () => void;
 }
 
 const OrgContext = createContext<OrgContextValue | null>(null);
 
 export function OrgProvider({ children }: { children: ReactNode }) {
-  const [organizations, setOrganizations] = useState<Organization[]>([]);
-  const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
+  const [memberships, setMemberships] = useState<Membership[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
 
     api
-      .listOrganizations()
-      .then((orgs) => {
+      .listMyOrganisations()
+      .then((result) => {
         if (cancelled) return;
-        setOrganizations(orgs);
+        setMemberships(result);
+        setError(null);
         const stored =
           typeof window !== "undefined" ? window.localStorage.getItem(STORAGE_KEY) : null;
-        const initial = orgs.find((o) => o.slug === stored) ?? orgs[0] ?? null;
-        setSelectedSlug(initial?.slug ?? null);
+        const initial =
+          result.find((m) => m.organisation.id === stored) ?? result[0] ?? null;
+        setSelectedId(initial?.organisation.id ?? null);
       })
       .catch((err: unknown) => {
         if (cancelled) return;
-        setError(err instanceof Error ? err.message : "Failed to load organizations");
+        setMemberships([]);
+        setError(err instanceof Error ? err.message : "Failed to load organisations");
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -54,27 +64,41 @@ export function OrgProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
+  }, [reloadToken]);
+
+  const setSelectedOrgId = useCallback((id: string) => {
+    setSelectedId(id);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(STORAGE_KEY, id);
+    }
   }, []);
 
-  const setSelectedOrgSlug = (slug: string) => {
-    setSelectedSlug(slug);
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(STORAGE_KEY, slug);
-    }
-  };
-
-  const selectedOrg = useMemo(
-    () => organizations.find((o) => o.slug === selectedSlug) ?? null,
-    [organizations, selectedSlug],
+  const selectedMembership = useMemo(
+    () => memberships.find((m) => m.organisation.id === selectedId) ?? null,
+    [memberships, selectedId],
   );
 
-  return (
-    <OrgContext.Provider
-      value={{ organizations, selectedOrg, setSelectedOrgSlug, loading, error }}
-    >
-      {children}
-    </OrgContext.Provider>
+  const can = useCallback(
+    (permission: Permission) =>
+      selectedMembership?.permissions.includes(permission) ?? false,
+    [selectedMembership],
   );
+
+  const value = useMemo<OrgContextValue>(
+    () => ({
+      memberships,
+      selectedMembership,
+      selectedOrg: selectedMembership?.organisation ?? null,
+      setSelectedOrgId,
+      can,
+      loading,
+      error,
+      reload: () => setReloadToken((t) => t + 1),
+    }),
+    [memberships, selectedMembership, setSelectedOrgId, can, loading, error],
+  );
+
+  return <OrgContext.Provider value={value}>{children}</OrgContext.Provider>;
 }
 
 export function useOrg(): OrgContextValue {

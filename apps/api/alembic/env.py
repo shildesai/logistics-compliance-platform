@@ -5,7 +5,7 @@ from sqlalchemy import engine_from_config, pool
 
 from app.core.config import get_settings
 from app.db.base import Base
-from app.models import Organization, User  # noqa: F401  (registers models with Base)
+import app.models  # noqa: F401  (imports every model so Base.metadata is complete)
 
 config = context.config
 

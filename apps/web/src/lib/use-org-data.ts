@@ -8,38 +8,44 @@ interface UseOrgDataResult<T> {
   data: T | null;
   loading: boolean;
   error: string | null;
+  reload: () => void;
 }
 
 interface FetchState<T> {
-  slug: string;
+  key: string;
   data: T | null;
   error: string | null;
 }
 
-/** Fetches data scoped to the currently selected organisation, and refetches
- * whenever the organisation selection changes.
+/** Fetches data scoped to the selected organisation, refetching when the
+ * selection changes.
  *
  * Failures in the organisation lookup itself (e.g. the API is unreachable, so
- * no organisation can ever be selected) are surfaced as errors rather than
- * leaving the caller on a loading state that would never resolve.
+ * no organisation can ever be selected) surface as errors rather than leaving
+ * the caller on a loading state that never resolves.
  */
-export function useOrgData<T>(fetcher: (orgSlug: string) => Promise<T>): UseOrgDataResult<T> {
+export function useOrgData<T>(
+  fetcher: (organisationId: string) => Promise<T>,
+): UseOrgDataResult<T> {
   const { selectedOrg, loading: orgLoading, error: orgError } = useOrg();
   const [state, setState] = useState<FetchState<T> | null>(null);
+  const [reloadToken, setReloadToken] = useState(0);
+
+  const key = selectedOrg ? `${selectedOrg.id}:${reloadToken}` : null;
 
   useEffect(() => {
-    if (!selectedOrg) return;
+    if (!selectedOrg || key === null) return;
 
     let cancelled = false;
 
-    fetcher(selectedOrg.slug)
+    fetcher(selectedOrg.id)
       .then((result) => {
-        if (!cancelled) setState({ slug: selectedOrg.slug, data: result, error: null });
+        if (!cancelled) setState({ key, data: result, error: null });
       })
       .catch((err: unknown) => {
         if (!cancelled) {
           setState({
-            slug: selectedOrg.slug,
+            key,
             data: null,
             error: err instanceof Error ? err.message : "Failed to load data",
           });
@@ -50,28 +56,27 @@ export function useOrgData<T>(fetcher: (orgSlug: string) => Promise<T>): UseOrgD
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedOrg?.slug]);
+  }, [key]);
+
+  const reload = () => setReloadToken((t) => t + 1);
 
   if (orgError) {
-    return { data: null, loading: false, error: orgError };
+    return { data: null, loading: false, error: orgError, reload };
   }
-
   if (orgLoading) {
-    return { data: null, loading: true, error: null };
+    return { data: null, loading: true, error: null, reload };
   }
-
   if (!selectedOrg) {
     return {
       data: null,
       loading: false,
       error: "No organisation is available for this account.",
+      reload,
     };
   }
-
-  // Selection changed but its data hasn't arrived yet.
-  if (state?.slug !== selectedOrg.slug) {
-    return { data: null, loading: true, error: null };
+  if (state?.key !== key) {
+    return { data: null, loading: true, error: null, reload };
   }
 
-  return { data: state.data, loading: false, error: state.error };
+  return { data: state.data, loading: false, error: state.error, reload };
 }

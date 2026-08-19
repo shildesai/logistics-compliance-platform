@@ -29,6 +29,7 @@ logistics-compliance-platform/
 │   ├── CONTROL_MODEL.md       # Control modeling approach
 │   ├── DATA_MODEL.md          # Data model reference
 │   ├── SECURITY.md            # Security considerations
+│   ├── TENANCY.md             # Multi-tenant isolation model, roles, threat notes
 │   └── reference/              # Reference documentation (API, schemas, etc.)
 │
 ├── tests/                     # Cross-cutting/integration tests
@@ -76,6 +77,7 @@ cp .env.example .env            # adjust DATABASE_URL if needed
 uv venv .venv && source .venv/bin/activate
 uv pip install -e ".[dev]"
 alembic upgrade head
+python scripts/seed_dev_data.py   # two demo organisations + users
 uvicorn app.main:app --reload --port 8000
 
 # 3. Web (in a second terminal)
@@ -84,6 +86,12 @@ cp .env.example .env.local
 npm install
 npm run dev
 ```
+
+There is no login yet. The API takes the caller's identity from an `X-User-Id`
+header, which the web app sends from `NEXT_PUBLIC_DEV_USER_ID`. This shim is
+gated to development and the API refuses to start with it enabled in a
+production-like environment — see `docs/TENANCY.md` §7. `seed_dev_data.py`
+prints the user ids to switch between; they are stable across database rebuilds.
 
 Then open http://localhost:3000 (redirects to `/overview`).
 

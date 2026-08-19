@@ -43,25 +43,28 @@ test("left navigation lists all 8 sections and each one loads", async ({ page })
   }
 });
 
-test("organisation selector switches the active organisation", async ({ page }) => {
+test("organisation selector lists only the signed-in user's memberships", async ({
+  page,
+}) => {
   await page.goto("/overview");
 
   const select = page.getByLabel("Organisation");
   await expect(select).toBeVisible();
 
+  // The dev user is a member of exactly one organisation, so the switcher must
+  // offer exactly that one — it is not a directory of every tenant.
   const options = await select.locator("option").allTextContents();
-  expect(options.length).toBeGreaterThan(1);
-
-  await select.selectOption({ label: options[1] });
-  await expect(select).toHaveValue(await select.locator("option").nth(1).getAttribute("value") ?? "");
+  expect(options).toEqual(["Southern Cross Logistics"]);
+  await expect(page.getByText("ORG ADMIN")).toBeVisible();
 });
 
-test("user profile menu opens and shows account details", async ({ page }) => {
+test("user profile menu opens and shows account and role details", async ({ page }) => {
   await page.goto("/overview");
 
   await page.getByRole("button", { name: /Sam Chen/i }).click();
   await expect(page.getByRole("menuitem", { name: "Sign out" })).toBeVisible();
-  await expect(page.getByText("Compliance Manager")).toBeVisible();
+  await expect(page.getByText("sam.chen@southerncross.example")).toBeVisible();
+  await expect(page.getByText(/ORG ADMIN · Southern Cross Logistics/)).toBeVisible();
 });
 
 test("page is usable at a mobile viewport", async ({ page }) => {

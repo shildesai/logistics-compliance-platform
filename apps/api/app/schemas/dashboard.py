@@ -1,3 +1,5 @@
+import uuid
+
 from pydantic import BaseModel
 
 
@@ -16,7 +18,7 @@ class DomainStatus(BaseModel):
 
 
 class AssuranceOverview(BaseModel):
-    organization_slug: str
+    organisation_id: uuid.UUID
     generated_at: str
     high_risk_findings: int
     overdue_corrective_actions: int

@@ -1,4 +1,5 @@
 from functools import lru_cache
+from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -11,6 +12,10 @@ class Settings(BaseSettings):
     app_name: str = "Logistics Compliance Intelligence Platform API"
     environment: str = "development"
     api_v1_prefix: str = "/api/v1"
+
+    # Development-only identity shim; see app/core/security.py. Startup fails
+    # if this is left on in a production-like environment.
+    auth_mode: Literal["dev_header"] = "dev_header"
 
     database_url: str = (
         "postgresql+psycopg://logistics:logistics@localhost:5432/logistics_compliance"

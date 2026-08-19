@@ -5,8 +5,13 @@ from app.api.v1.endpoints import health
 from app.api.v1.router import api_router
 from app.core.config import get_settings
 from app.core.errors import register_exception_handlers
+from app.core.security import assert_auth_mode_is_safe
 
 settings = get_settings()
+
+# Fail fast rather than serving traffic with the development identity shim
+# enabled in a production-like environment.
+assert_auth_mode_is_safe(settings)
 
 app = FastAPI(
     title=settings.app_name,
