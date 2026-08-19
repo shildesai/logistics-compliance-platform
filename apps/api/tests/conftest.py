@@ -188,6 +188,57 @@ def auth(user: User, organisation: Organisation | None = None) -> dict[str, str]
     return headers
 
 
+@dataclass
+class ControlGraphFixture:
+    regulation: object
+    fatigue_control: object
+    maintenance_control: object
+
+
+@pytest.fixture()
+def control_graph(db) -> ControlGraphFixture:
+    """The sample Compliance Control Graph, seeded inside the test transaction.
+
+    Reuses scripts/seed_control_graph.py rather than duplicating fixtures, so
+    the tests exercise the same data a developer sees locally — and the seed
+    script itself gets tested on every run.
+    """
+    import sys
+    from pathlib import Path
+
+    scripts = Path(__file__).resolve().parents[1] / "scripts"
+    if str(scripts) not in sys.path:
+        sys.path.insert(0, str(scripts))
+
+    from seed_control_graph import seed  # noqa: PLC0415
+
+    # An ACTIVE version needs a recorded reviewer and approver.
+    db.add(
+        User(
+            email=f"{_unique('graph-governor')}@example.com",
+            full_name="Graph Governor",
+            is_platform_admin=True,
+        )
+    )
+    db.flush()
+
+    seed(db)
+    db.flush()
+
+    from app.models import Control as _Control
+    from app.models import Regulation as _Regulation
+
+    regulation = db.execute(select(_Regulation)).scalars().one()
+    controls = {
+        c.control_code: c for c in db.execute(select(_Control)).scalars().all()
+    }
+    return ControlGraphFixture(
+        regulation=regulation,
+        fatigue_control=controls["CTL-FAT-001"],
+        maintenance_control=controls["CTL-MNT-001"],
+    )
+
+
 @pytest.fixture()
 def jurisdictions(db) -> list[Jurisdiction]:
     return list(db.execute(select(Jurisdiction).order_by(Jurisdiction.code)).scalars().all())

@@ -1,5 +1,12 @@
 import type {
   Accreditation,
+  ControlDetail,
+  ControlLineage,
+  ControlListItem,
+  GraphStatistics,
+  ObligationDetail,
+  GraphObligation,
+  RegulationListItem,
   ApiErrorBody,
   AssignedCoRRole,
   AssignedJurisdiction,
@@ -46,10 +53,14 @@ interface RequestOptions {
   organisationId?: string;
   method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
   body?: unknown;
+  query?: Record<string, string>;
 }
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { organisationId, method = "GET", body } = options;
+  const { organisationId, method = "GET", body, query } = options;
+
+  const search = new URLSearchParams(query ?? {}).toString();
+  const url = `${API_BASE_URL}${path}${search ? `?${search}` : ""}`;
 
   const headers: Record<string, string> = { Accept: "application/json" };
   if (DEV_USER_ID) headers["X-User-Id"] = DEV_USER_ID;
@@ -58,7 +69,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 
   let response: Response;
   try {
-    response = await fetch(`${API_BASE_URL}${path}`, {
+    response = await fetch(url, {
       method,
       headers,
       cache: "no-store",
@@ -141,6 +152,49 @@ export const api = {
     request<Supplier[]>("/api/v1/suppliers", { organisationId: org }),
   listBusinessUnits: (org: string) =>
     request<BusinessUnit[]>("/api/v1/business-units", { organisationId: org }),
+
+  // Compliance Control Graph (platform-scoped reference data)
+  getGraphStatistics: (org: string, asAt?: string) =>
+    request<GraphStatistics>("/api/v1/control-graph/statistics", {
+      organisationId: org,
+      query: asAt ? { as_at: asAt } : undefined,
+    }),
+  browseRegulations: (org: string, asAt?: string) =>
+    request<RegulationListItem[]>("/api/v1/control-graph/regulations", {
+      organisationId: org,
+      query: asAt ? { as_at: asAt } : undefined,
+    }),
+  browseObligations: (org: string, params?: { asAt?: string; regulationId?: string }) =>
+    request<GraphObligation[]>("/api/v1/control-graph/obligations", {
+      organisationId: org,
+      query: {
+        ...(params?.asAt ? { as_at: params.asAt } : {}),
+        ...(params?.regulationId ? { regulation_id: params.regulationId } : {}),
+      },
+    }),
+  inspectObligation: (org: string, obligationId: string, asAt?: string) =>
+    request<ObligationDetail>(`/api/v1/control-graph/obligations/${obligationId}`, {
+      organisationId: org,
+      query: asAt ? { as_at: asAt } : undefined,
+    }),
+  browseControls: (org: string, params?: { asAt?: string; domain?: string }) =>
+    request<ControlListItem[]>("/api/v1/control-graph/controls", {
+      organisationId: org,
+      query: {
+        ...(params?.asAt ? { as_at: params.asAt } : {}),
+        ...(params?.domain ? { domain: params.domain } : {}),
+      },
+    }),
+  inspectControl: (org: string, controlId: string, asAt?: string) =>
+    request<ControlDetail>(`/api/v1/control-graph/controls/${controlId}`, {
+      organisationId: org,
+      query: asAt ? { as_at: asAt } : undefined,
+    }),
+  inspectControlLineage: (org: string, controlId: string, asAt?: string) =>
+    request<ControlLineage>(`/api/v1/control-graph/controls/${controlId}/lineage`, {
+      organisationId: org,
+      query: asAt ? { as_at: asAt } : undefined,
+    }),
 
   // Dashboard
   getOverview: (org: string) =>

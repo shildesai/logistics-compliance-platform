@@ -29,3 +29,6 @@ include = ["app*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# All tests are plain functions. Disabling class collection stops pytest from
+# trying to collect domain types whose names begin with "Test" (TestType).
+python_classes = []

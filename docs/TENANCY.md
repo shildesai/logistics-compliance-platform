@@ -25,7 +25,7 @@ Three categories of table exist, and every table must be in exactly one:
 |---|---|---|
 | **Tenant-scoped** | Yes, `NOT NULL`, indexed | `sites`, `fleets`, `suppliers`, `business_units`, `accreditations`, `organisation_jurisdictions`, `organisation_cor_roles` |
 | **Tenancy-defining** | Yes, but not subject to scoping | `organisation_users` — it *is* the authorisation source of truth |
-| **Platform-scoped** | No | `organisations`, `users`, `jurisdictions`, `cor_roles` |
+| **Platform-scoped** | No | `organisations`, `users`, `jurisdictions`, `cor_roles`, and the Compliance Control Graph (see below) |
 
 Tenant-scoped models inherit the `TenantScoped` mixin
 (`app/db/mixins.py`), which supplies the column. Platform-scoped tables are
@@ -43,6 +43,20 @@ engaged by several operators, an auditor assessing multiple carriers. Their
 account is global; their *access* to any organisation comes solely from an
 `organisation_users` row. Nothing about holding an account grants access to any
 organisation's data.
+
+### Why the Compliance Control Graph is platform-scoped
+
+`regulations`, `obligations`, `risks`, `controls`, `control_tests`,
+`evidence_requirements`, `applicability_rules` and `remediation_templates` hold
+no `organisation_id`. HVNL obligations and the controls mapped to them are
+identical for every operator — they are the platform's own reference data, not
+any customer's. Scoping them per tenant would defeat the shared-control
+architecture (one control assessment serving many obligations) and force every
+operator to maintain their own copy of the law.
+
+Tenant-specific obligations — contract terms a shipper imposes on a carrier —
+are a Phase 3 concern. They will be tenant-scoped records that *reference* this
+graph, never additions to it.
 
 ### Why suppliers are tenant-scoped
 

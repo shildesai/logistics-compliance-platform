@@ -12,15 +12,50 @@ from app.models.accreditation import (
     AccreditationScheme,
     AccreditationStatus,
 )
+from app.models.applicability_rule import ApplicabilityRule
 from app.models.business_unit import BusinessUnit
+from app.models.control import Control, ControlRiskLink, ControlVersion
+from app.models.control_test import ControlTest, ControlTestVersion
 from app.models.cor_role import CoRRole, OrganisationCoRRole
+from app.models.evidence_requirement import EvidenceRequirement
 from app.models.fleet import Fleet
 from app.models.jurisdiction import Jurisdiction, OrganisationJurisdiction
+from app.models.obligation import Obligation
 from app.models.organisation import Organisation, OrganisationStatus
 from app.models.organisation_user import OrganisationUser
+from app.models.regulation import Regulation, RegulationVersion, RegulatorySource
+from app.models.remediation_template import RemediationTemplate
+from app.models.risk import Risk
 from app.models.site import Site, SiteType
 from app.models.supplier import Supplier, SupplierType
 from app.models.user import User
+
+#: The Compliance Control Graph. Shared regulatory reference data, identical
+#: for every tenant and containing no customer information: HVNL obligations
+#: and the controls mapped to them do not differ per operator. Keeping it
+#: platform-scoped is what allows one control assessment to serve many
+#: obligations, and it is the platform's own IP rather than any customer's.
+#:
+#: Customer-specific obligations (contract terms a shipper imposes on a
+#: carrier) are a Phase 3 concern and will be tenant-scoped records that
+#: *reference* this graph — not additions to it. See docs/DECISIONS.md §1.12.
+CONTROL_GRAPH_TABLES: frozenset[str] = frozenset(
+    {
+        "regulatory_sources",
+        "regulations",
+        "regulation_versions",
+        "obligations",
+        "risks",
+        "controls",
+        "control_versions",
+        "control_risk_links",
+        "control_tests",
+        "control_test_versions",
+        "evidence_requirements",
+        "applicability_rules",
+        "remediation_templates",
+    }
+)
 
 #: Tables that intentionally hold no organisation_id.
 PLATFORM_SCOPED_TABLES: frozenset[str] = frozenset(
@@ -39,23 +74,37 @@ PLATFORM_SCOPED_TABLES: frozenset[str] = frozenset(
         # Alembic bookkeeping.
         "alembic_version",
     }
-)
+) | CONTROL_GRAPH_TABLES
 
 __all__ = [
     "Accreditation",
     "AccreditationModule",
     "AccreditationScheme",
     "AccreditationStatus",
+    "ApplicabilityRule",
     "BusinessUnit",
+    "CONTROL_GRAPH_TABLES",
+    "Control",
+    "ControlRiskLink",
+    "ControlTest",
+    "ControlTestVersion",
+    "ControlVersion",
     "CoRRole",
+    "EvidenceRequirement",
     "Fleet",
     "Jurisdiction",
+    "Obligation",
     "Organisation",
     "OrganisationCoRRole",
     "OrganisationJurisdiction",
     "OrganisationStatus",
     "OrganisationUser",
     "PLATFORM_SCOPED_TABLES",
+    "Regulation",
+    "RegulationVersion",
+    "RegulatorySource",
+    "RemediationTemplate",
+    "Risk",
     "Site",
     "SiteType",
     "Supplier",

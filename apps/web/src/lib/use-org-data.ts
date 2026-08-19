@@ -26,12 +26,17 @@ interface FetchState<T> {
  */
 export function useOrgData<T>(
   fetcher: (organisationId: string) => Promise<T>,
+  /** Extra values that should trigger a refetch when they change — e.g. a
+   * selected record id or an as-at date. The organisation is always included. */
+  deps: ReadonlyArray<string | number | boolean | null | undefined> = [],
 ): UseOrgDataResult<T> {
   const { selectedOrg, loading: orgLoading, error: orgError } = useOrg();
   const [state, setState] = useState<FetchState<T> | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
 
-  const key = selectedOrg ? `${selectedOrg.id}:${reloadToken}` : null;
+  const key = selectedOrg
+    ? [selectedOrg.id, reloadToken, ...deps.map((d) => String(d))].join("|")
+    : null;
 
   useEffect(() => {
     if (!selectedOrg || key === null) return;
