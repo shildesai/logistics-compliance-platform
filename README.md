@@ -26,7 +26,8 @@ logistics-compliance-platform/
 │   ├── ARCHITECTURE.md        # System architecture
 │   ├── CONTROL_MODEL.md       # Control modeling approach
 │   ├── DATA_MODEL.md          # Data model reference
-│   └── SECURITY.md            # Security considerations
+│   ├── SECURITY.md            # Security considerations
+│   └── reference/              # Reference documentation (API, schemas, etc.)
 │
 ├── tests/                     # Cross-cutting/integration tests
 ├── scripts/                   # Dev, build, and ops scripts
