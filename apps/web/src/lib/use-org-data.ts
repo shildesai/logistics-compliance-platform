@@ -17,9 +17,14 @@ interface FetchState<T> {
 }
 
 /** Fetches data scoped to the currently selected organisation, and refetches
- * whenever the organisation selection changes. */
+ * whenever the organisation selection changes.
+ *
+ * Failures in the organisation lookup itself (e.g. the API is unreachable, so
+ * no organisation can ever be selected) are surfaced as errors rather than
+ * leaving the caller on a loading state that would never resolve.
+ */
 export function useOrgData<T>(fetcher: (orgSlug: string) => Promise<T>): UseOrgDataResult<T> {
-  const { selectedOrg } = useOrg();
+  const { selectedOrg, loading: orgLoading, error: orgError } = useOrg();
   const [state, setState] = useState<FetchState<T> | null>(null);
 
   useEffect(() => {
@@ -47,11 +52,26 @@ export function useOrgData<T>(fetcher: (orgSlug: string) => Promise<T>): UseOrgD
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedOrg?.slug]);
 
-  const loading = !selectedOrg || state?.slug !== selectedOrg.slug;
+  if (orgError) {
+    return { data: null, loading: false, error: orgError };
+  }
 
-  return {
-    data: loading ? null : state?.data ?? null,
-    loading,
-    error: loading ? null : state?.error ?? null,
-  };
+  if (orgLoading) {
+    return { data: null, loading: true, error: null };
+  }
+
+  if (!selectedOrg) {
+    return {
+      data: null,
+      loading: false,
+      error: "No organisation is available for this account.",
+    };
+  }
+
+  // Selection changed but its data hasn't arrived yet.
+  if (state?.slug !== selectedOrg.slug) {
+    return { data: null, loading: true, error: null };
+  }
+
+  return { data: state.data, loading: false, error: state.error };
 }

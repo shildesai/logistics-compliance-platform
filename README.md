@@ -90,7 +90,8 @@ Then open http://localhost:3000 (redirects to `/overview`).
 ## Testing
 
 ```bash
-# Backend: unit tests + API smoke tests (pytest)
+# Backend: unit tests, API smoke tests, error-handler and ORM tests (pytest).
+# The ORM tests skip automatically if no database is reachable.
 cd apps/api && source .venv/bin/activate && python -m pytest -v
 
 # Frontend: typecheck + lint

@@ -147,9 +147,14 @@ place (`apps/web`, `apps/api`, `packages/shared`):
 - **Background worker** (Celery/RQ or an async task queue, Postgres- or Redis-backed) for
   connector polling, analytical (windowed) test runs, and AI calls — kept out of the
   request/response path.
-- **`packages/shared`** holds cross-cutting types used by both `apps/web` and `apps/api`
-  (tenant context shape, PSOE enum, severity enum, generated OpenAPI/TS client) so the
-  frontend and backend can't drift on these contracts.
+- **Frontend/backend contract is the OpenAPI schema, not a shared package.** `apps/api`
+  is Python and `apps/web` is TypeScript, so they cannot literally import the same
+  module; the binding contract is the schema FastAPI already publishes at
+  `/openapi.json`. The intended path is to generate the TypeScript client from it into
+  `packages/shared` so the frontend's types are derived from the backend rather than
+  hand-copied. Until that generation step exists, `apps/web/src/lib/types.ts` is a
+  hand-written mirror of `apps/api/app/schemas/` and is a known drift risk —
+  `packages/shared` stays empty rather than holding a duplicate maintained by hand.
 - **`apps/web`** (Next.js) consumes the FastAPI service over REST/OpenAPI; no direct
   database access from the frontend.
 

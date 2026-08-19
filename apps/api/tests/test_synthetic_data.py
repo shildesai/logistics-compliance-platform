@@ -5,6 +5,7 @@ compliance logic to test) — see docs/DECISIONS.md.
 """
 
 from app.data.synthetic import (
+    OPEN_FINDING_STATUSES,
     synthetic_audit_pack,
     synthetic_corrective_actions,
     synthetic_domain_statuses,
@@ -23,6 +24,28 @@ def test_domain_control_counts_match_catalogue_totals():
     domains = {d.domain: d.control_count for d in synthetic_domain_statuses()}
     # Matches docs/DECISIONS.md §1.1: 47 P1 tests across these 8 domains.
     assert sum(domains.values()) == 47
+
+
+def test_overview_open_findings_agree_with_the_findings_inbox():
+    """The Assurance Overview must not claim more open findings than the
+    Findings inbox actually lists — the two views share one source of truth."""
+    per_domain = {d.domain: d.open_findings for d in synthetic_domain_statuses()}
+    findings = synthetic_findings()
+
+    for domain, claimed in per_domain.items():
+        actual = sum(
+            1 for f in findings if f.domain == domain and f.status in OPEN_FINDING_STATUSES
+        )
+        assert claimed == actual, f"{domain}: overview says {claimed}, inbox has {actual}"
+
+    open_total = sum(1 for f in findings if f.status in OPEN_FINDING_STATUSES)
+    assert sum(per_domain.values()) == open_total
+
+
+def test_every_finding_belongs_to_a_known_domain():
+    known_domains = {d.domain for d in synthetic_domain_statuses()}
+    for finding in synthetic_findings():
+        assert finding.domain in known_domains
 
 
 def test_findings_reference_known_control_tests():

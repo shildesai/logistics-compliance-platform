@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from app.core.errors import NotFoundError
 from app.data.synthetic import (
     GENERATED_AT,
+    OPEN_FINDING_STATUSES,
     synthetic_audit_pack,
     synthetic_corrective_actions,
     synthetic_domain_statuses,
@@ -34,16 +35,19 @@ def _check_org(org_slug: str) -> None:
 @router.get("/overview", response_model=AssuranceOverview)
 def get_overview(org: str = "southern-cross-logistics") -> AssuranceOverview:
     _check_org(org)
-    domains = synthetic_domain_statuses()
     return AssuranceOverview(
         organization_slug=org,
         generated_at=GENERATED_AT,
-        high_risk_findings=sum(1 for f in synthetic_findings() if f.severity in ("High", "Critical")),
+        high_risk_findings=sum(
+            1
+            for f in synthetic_findings()
+            if f.severity in ("High", "Critical") and f.status in OPEN_FINDING_STATUSES
+        ),
         overdue_corrective_actions=sum(
             1 for c in synthetic_corrective_actions() if c.status == "overdue"
         ),
         evidence_freshness_pct=94,
-        domains=domains,
+        domains=synthetic_domain_statuses(),
     )
 
 

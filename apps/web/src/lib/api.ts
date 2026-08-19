@@ -31,10 +31,17 @@ async function apiGet<T>(path: string, params?: Record<string, string>): Promise
     }
   }
 
-  const response = await fetch(url.toString(), {
-    headers: { Accept: "application/json" },
-    cache: "no-store",
-  });
+  let response: Response;
+  try {
+    response = await fetch(url.toString(), {
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+    });
+  } catch {
+    // fetch() rejects with an opaque TypeError on DNS/connection failure;
+    // surface something a user can act on instead.
+    throw new Error(`Could not reach the API at ${API_BASE_URL}.`);
+  }
 
   if (!response.ok) {
     const body = (await response.json().catch(() => null)) as ApiErrorBody | null;

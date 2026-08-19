@@ -32,8 +32,11 @@ services:
   web:
     build:
       context: ./apps/web
-    environment:
-      NEXT_PUBLIC_API_URL: http://localhost:8000
+      args:
+        # Build-time, not runtime: NEXT_PUBLIC_* is inlined into the browser
+        # bundle during `next build`. This is the URL the *browser* uses, so
+        # it is the published host port, not the compose service name.
+        NEXT_PUBLIC_API_URL: http://localhost:8000
     ports:
       - "3000:3000"
     depends_on:
